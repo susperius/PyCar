@@ -1,0 +1,12 @@
+#/usr/bin/python
+
+import obd2
+
+handle = obd2.ObdFunctions(obd2.ObdConnection('/dev/ttyUSB0'))
+
+pids_available = handle.get_supported_pids_mode_1
+
+i = 1
+for pid in pids_available:
+    if (pid == 1):
+        print(str(i)+' -> available')
