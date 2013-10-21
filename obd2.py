@@ -5,10 +5,10 @@ import time
 
 
 class ObdConnection:
-    def __init__(self, port, bauds=38400, timeout=1, prot_no=0, sleep_time=0.5):
+    def __init__(self, port, bauds=38400, timeout=1, prot_no=0, wait_time=0.5):
         self.ser_con = serial.Serial(port, bauds, timeout=timeout)
         self.set_protocol(prot_no)
-        self.sleep_time = sleep_time
+        self.sleep_time = wait_time
 
     # uses the AT SP Command to set the choosen protocol
     # 0 = auto detection
@@ -25,7 +25,7 @@ class ObdConnection:
         return byte_count
 
     def readline(self):
-        return str(self.ser_con.readline())
+        return self.ser_con.readline()
 
 
 class ObdFunctions:
@@ -51,9 +51,12 @@ class ObdFunctions:
     def __get_decoded_pids_mode_1(self, block_no):
         self.con.write('01 '+block_no+' \r')
         answer = self.con.readline()
+        print(answer)
         end_index = answer.find('\r\r')
         start_index = answer.find('41 '+block_no, end_index)
+        print(answer[start_index+4:end_index-1])
         supported_encoded = answer[start_index + 4:end_index - 1].split(' ')
+        print(supported_encoded)
         return supported_encoded
 
     @staticmethod
