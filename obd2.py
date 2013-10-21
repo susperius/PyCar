@@ -43,7 +43,7 @@ class ObdFunctions:
         i = 1
         for pid in info_pids:
             supported_encoded = self.__get_decoded_pids_mode_1(pid)
-            supported_decoded += self.__decode_supported_pids_mode_1(supported_encoded)
+            supported_decoded += self.__decode_supported_pids_mode_1(supported_encoded, int(info_pids[i-1], 16))
             if int(info_pids[i], 16) in supported_decoded:
                 i += 1
                 continue
@@ -54,18 +54,17 @@ class ObdFunctions:
     def __get_decoded_pids_mode_1(self, block_no):
         self.con.write('01 '+block_no+' \r')
         answer = self.con.readline()
-        print(answer)
+        print('RAW ANSWER -> ',answer)
         end_index = answer.find('\r\r') - 1 # cut off the last space
         # 41_XX_ should be skipped cause it's the answer status
         start_index = answer.find('41 '+block_no) + 6
-        print(answer[start_index+3:end_index])
-        supported_encoded = answer[start_index+3:end_index].split(' ')
+        supported_encoded = answer[start_index:end_index].split(' ')
         print(supported_encoded)
         return supported_encoded
 
     @staticmethod
-    def __decode_supported_pids_mode_1(supported_encoded):
-        i = 1
+    def __decode_supported_pids_mode_1(supported_encoded, base_pid):
+        i = base_pid + 1
         supported_decoded = []
         for elem in supported_encoded:
             bin_comp = 0b10000000
