@@ -5,9 +5,10 @@ import time
 
 
 class ObdConnection:
-    def __init__(self, port, bauds=38400, timeout=1, prot_no=0):
+    def __init__(self, port, bauds=38400, timeout=1, prot_no=0, sleep_time=0.5):
         self.ser_con = serial.Serial(port, bauds, timeout=timeout)
         self.set_protocol(prot_no)
+        self.sleep_time = sleep_time
 
     # uses the AT SP Command to set the choosen protocol
     # 0 = auto detection
@@ -20,12 +21,12 @@ class ObdConnection:
 
     def write(self, data):
         byte_count = self.ser_con.write(data)
-        time.sleep(0.5)
+        time.sleep(self.sleep_time)
         return byte_count
-
 
     def readline(self):
         return str(self.ser_con.readline())
+
 
 class ObdFunctions:
     def __init__(self, connection):
@@ -34,20 +35,37 @@ class ObdFunctions:
     # the method expects an answer like 01 00 \rSEARCHING...\rXX YY ZZ ... \r\r
     # the interesting part is between the last \r to \r\r
     def get_supported_pids_mode_1(self):
-        self.con.write('01 00 \r')
+        info_pids = ['00', '20', '40', '80', 'A0', 'C0']
+        supported_decoded = []
+        i = 1
+        for pid in info_pids:
+            supported_encoded = self.__get_decoded_pids_mode_1(pid)
+            supported_decoded += self.__decode_supported_pids_mode_1(supported_encoded)
+            if int(info_pids[i], 16) in supported_decoded:
+                i += 1
+                continue
+            else:
+                break
+        return supported_decoded
+
+    def __get_decoded_pids_mode_1(self, block_no):
+        self.con.write('01 '+block_no+' \r')
         answer = self.con.readline()
         end_index = answer.find('\r\r')
-        start_index = answer.rfind('\r', end_index)
-        supported_encoded = answer[start_index + 1:end_index - 1].split(' ')
+        start_index = answer.find('41 '+block_no, end_index)
+        supported_encoded = answer[start_index + 4:end_index - 1].split(' ')
+        return supported_encoded
+
+    @staticmethod
+    def __decode_supported_pids_mode_1(supported_encoded):
+        i = 1
         supported_decoded = []
-        i = 48 
         for elem in supported_encoded:
-            bin_comp = 0b10000000;
+            bin_comp = 0b10000000
             for x in range(8):
                 if (int(elem, 16) & bin_comp) == bin_comp:
                     supported_decoded.append(i)
-                i -= 1
+                i += 1
                 bin_comp -= (bin_comp / 2)
         supported_decoded = sorted(supported_decoded)
         return supported_decoded
-
