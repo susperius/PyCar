@@ -55,9 +55,8 @@ class ObdFunctions:
         self.con.write('01 '+block_no+' \r')
         answer = self.con.readline()
         print(answer)
-        end_index = answer.find('\r\r') - 1 # cut off the last space
-        # 41_XX_ should be skipped cause it's the answer status
-        start_index = answer.find('41 '+block_no) + 6
+        end_index = answer.find('\r\r') - 1  # cut off the last space
+        start_index = answer.find('41 '+block_no) + 6  # 41_XX_ should be skipped cause it's the answer status
         print(answer[start_index+3:end_index])
         supported_encoded = answer[start_index+3:end_index].split(' ')
         print(supported_encoded)
