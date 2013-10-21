@@ -2,6 +2,7 @@
 
 import serial
 import time
+import obd2pids
 
 
 class ObdConnection:
@@ -40,6 +41,7 @@ class ObdFunctions:
     def get_supported_pids_mode_1(self):
         info_pids = ['00', '20', '40', '80', 'A0', 'C0']
         supported_decoded = []
+        supported_pids = []
         i = 1
         for pid in info_pids:
             supported_encoded = self.__get_decoded_pids_mode_1(pid)
@@ -49,18 +51,22 @@ class ObdFunctions:
                 continue
             else:
                 break
-        return supported_decoded
+        for pid in supported_decoded:
+            supported_pids.append((hex(pid), obd2pids.pids[pid][3]))
+        return supported_pids
 
     def __get_decoded_pids_mode_1(self, block_no):
         self.con.write('01 '+block_no+' \r')
         answer = self.con.readline()
-        print('RAW ANSWER -> ',answer)
-        end_index = answer.find('\r\r') - 1 # cut off the last space
-        # 41_XX_ should be skipped cause it's the answer status
-        start_index = answer.find('41 '+block_no) + 6
-        supported_encoded = answer[start_index:end_index].split(' ')
-        print(supported_encoded)
+        supported_encoded = self.__get_relevant_message_parts(answer, '41 '+block_no, '\r\r')
         return supported_encoded
+
+    @staticmethod
+    def __get_relevant_message_parts(message, start_string, end_string):
+        start_index = message.find(start_string) + len(start_string) + 1 # Skipping the start_string and the space char
+        end_index = message.find(end_string) - 1  # cut off last space
+        ret_message = message[start_index:end_index].split(' ')
+        return ret_message
 
     @staticmethod
     def __decode_supported_pids_mode_1(supported_encoded, base_pid):
@@ -75,3 +81,11 @@ class ObdFunctions:
                 bin_comp -= (bin_comp / 2)
         supported_decoded = sorted(supported_decoded)
         return supported_decoded
+
+    def get_dtc_mode_3(self):
+        self.con.write('03 \r')
+        answer = self.con.readline()
+        dtc_encoded = self.__get_relevant_message_parts(answer, '43', '\r\r')
+        dtc_count = int(dtc_encoded[0], 16)
+        for x in range(dtc_count):
+            print('DO SOMETHING')
