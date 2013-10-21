@@ -5,6 +5,8 @@ import time
 
 
 class ObdConnection:
+    sleep_time = 0
+
     def __init__(self, port, bauds=38400, timeout=1, prot_no=0, wait_time=0.5):
         self.ser_con = serial.Serial(port, bauds, timeout=timeout)
         self.set_protocol(prot_no)
@@ -25,6 +27,7 @@ class ObdConnection:
         return byte_count
 
     def readline(self):
+        time.sleep(self.sleep_time)
         return self.ser_con.readline()
 
 
@@ -53,9 +56,9 @@ class ObdFunctions:
         answer = self.con.readline()
         print(answer)
         end_index = answer.find('\r\r')
-        start_index = answer.find('41 '+block_no, end_index)
-        print(answer[start_index+4:end_index-1])
-        supported_encoded = answer[start_index + 4:end_index - 1].split(' ')
+        start_index = answer.find('41 '+block_no) + 6 # 41_XX_ should be skipped cause it's the answer status
+        print(answer[start_index+3:end_index])
+        supported_encoded = answer[start_index+3:end_index].split(' ')
         print(supported_encoded)
         return supported_encoded
 
