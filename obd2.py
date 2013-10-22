@@ -83,9 +83,34 @@ class ObdFunctions:
         return supported_decoded
 
     def get_dtc_mode_3(self):
+        dtc_decoded = []
         self.con.write('03 \r')
         answer = self.con.readline()
         dtc_encoded = self.__get_relevant_message_parts(answer, '43', '\r\r')
         dtc_count = int(dtc_encoded[0], 16)
+        dtc_encoded.pop(0)
+        i = 0
         for x in range(dtc_count):
-            print('DO SOMETHING')
+            dtc = [dtc_encoded[i], dtc_encoded[i+1]]
+            dtc_decoded.append(self.__translate_dtc(dtc))
+        return dtc_decoded
+
+    @staticmethod
+    def __translate_dtc(dtc_encoded):
+        dtc_decoded = ''
+        dtc_first_char = {0b00: 'P', 0b01: 'C', 0b10: 'B', 0b11: 'U'}
+        dtc_second_char = {0b00: '0', 0b01: '1', 0b10: '2', 0b11: '3'}
+        dtc_last_chars = {0b0000: '0', 0b0001: '1', 0b0010: '2', 0b0011: '3', 0b0100: '4', 0b0101: '5',
+                          0b0110: '6', 0b0111: '7', 0b1000: '8', 0b1001: '9', 0b1010: 'A', 0b1011: 'B',
+                          0b1100: 'C', 0b1101: 'D', 0b1110: 'E', 0b1111: 'F'}
+        dtc_first = int(dtc_encoded[0], 16) >> 6
+        dtc_decoded += dtc_first_char[dtc_first]
+        dtc_second = (int(dtc_encoded[0], 16) >> 4) & 0b0011
+        dtc_decoded += dtc_second_char[dtc_second]
+        dtc_third = int(dtc_encoded[0], 16) & 0b00001111
+        dtc_decoded += dtc_last_chars[dtc_third]
+        dtc_fourth = int(dtc_encoded[1], 16) >> 4
+        dtc_decoded += dtc_last_chars[dtc_fourth]
+        dtc_fifth = int(dtc_encoded[1],16) & 0b00001111
+        dtc_decoded += dtc_last_chars[dtc_fifth]
+        return dtc_decoded
