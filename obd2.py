@@ -203,7 +203,17 @@ class ObdFunctions:
         value_encoded = self.__get_encoded_value(mode_nr, '12')
         return secondary_air_status[int(value_encoded[0], 16)]
     
-    def  
+    def get_available_oxygen_sensors(self, mode_nr):
+        value_encoded = self.__get_encoded_value(mode_nr, '13')
+        check_val = 0b00000001
+        i = 1
+        sensors = []
+        for x in range(8):
+            if int(value_encoded[0], 16) & check_val == check_val:
+                sensors.append(i)
+            i += 1
+            check_val *= 2
+        return sensors
       
     def get_dtc_mode_3(self):
         dtc_decoded = []
