@@ -132,7 +132,9 @@ class ObdFunctions:
 
     def __get_encoded_value(self, mode_nr, pid):
         answer = self.con.communicate(mode_nr + ' ' + pid + ' \r\r')
-        return self.__get_relevant_message_parts(answer, hex(0x40 + int(mode_nr, 16)), '\r\r')
+	print(hex(0x40 + int(mode_nr, 16))[2:4]+ ' '+pid)
+	print(pid)
+        return self.__get_relevant_message_parts(answer, hex(0x40 + int(mode_nr, 16))[2:4]+' '+pid, '\r\r')
 
     def get_calculated_engine_load_value(self, mode_nr):
         value_encoded = self.__get_encoded_value(mode_nr, '04')
