@@ -56,7 +56,7 @@ class ObdFunctions:
         i = 1
         for pid in info_pids:
             supported_encoded = self.__get_decoded_pids_mode_1(pid, mode_nr)
-            supported_decoded += self.__decode_supported_pids_mode_1(supported_encoded, int(info_pids[i-1], 16))
+            supported_decoded += self.__decode_supported_pids_mode_1(supported_encoded, int(info_pids[i - 1], 16))
             if int(info_pids[i], 16) in supported_decoded:
                 i += 1
                 continue
@@ -67,8 +67,8 @@ class ObdFunctions:
         return supported_pids
 
     def __get_decoded_pids_mode_1(self, block_no, mode_nr):
-        answer = self.con.communicate(mode_nr+' '+block_no+' \r')
-        supported_encoded = self.__get_relevant_message_parts(answer, '41 '+block_no, '\r\r')
+        answer = self.con.communicate(mode_nr + ' ' + block_no + ' \r')
+        supported_encoded = self.__get_relevant_message_parts(answer, '41 ' + block_no, '\r\r')
         return supported_encoded
 
     @staticmethod
@@ -87,12 +87,14 @@ class ObdFunctions:
 
     def get_monitor_status_since_dtc_clear(self, mode_nr):
         mon_stat_decoded = {'MIL-Indication': 0, 'DTCs-available': 0, 'Ignition-Monitor-Support': 0,
-                            'Standard-Tests': { 'Misfire': (0, 0), 'Fuel-System': (0, 0), 'Components': (0, 0) }, 
-                            'Spark-Ignition-Tests': { 'Catalyst': (0, 0), 'Heated-Catalyst': (0, 0), 'Evaporative-Systems': (0, 0), 'Secondary-Air-System': (0, 0),
-                                                      'A/C-Refrigerant': (0, 0), 'Oxygen-Sensor': (0, 0), 'Oxygen-Sensor-Heater': (0, 0), 'EGR-Sytem': (0, 0) },
-                            'Compression-Ignition-Tests': { 'NMHC-Cat': (0, 0), 'N0x/Scr-Monitor': (0, 0), 'Boost-Pressure': (0, 0), 'Exhaust-Gas-Sensor': (0, 0),
-                                                            'PM-Filter-Monitoring': (0, 0), 'EGR/VVT-System': (0, 0) }
-                           }
+                            'Standard-Tests': {'Misfire': (0, 0), 'Fuel-System': (0, 0), 'Components': (0, 0)},
+                            'Spark-Ignition-Tests': {'Catalyst': (0, 0), 'Heated-Catalyst': (0, 0),
+                                                     'Evaporative-Systems': (0, 0), 'Secondary-Air-System': (0, 0),
+                                                     'A/C-Refrigerant': (0, 0), 'Oxygen-Sensor': (0, 0),
+                                                     'Oxygen-Sensor-Heater': (0, 0), 'EGR-Sytem': (0, 0)},
+                            'Compression-Ignition-Tests': {'NMHC-Cat': (0, 0), 'N0x/Scr-Monitor': (0, 0),
+                                                           'Boost-Pressure': (0, 0), 'Exhaust-Gas-Sensor': (0, 0),
+                                                           'PM-Filter-Monitoring': (0, 0), 'EGR/VVT-System': (0, 0)}}
         answer = self.con.communicate(mode_nr + '01 \r')
         mon_stat_encoded = self.__get_relevant_message_parts(answer, '41 01', '\r\r')
         mon_stat_decoded['MIL-Indication'] = int(mon_stat_encoded[0], 16) >> 7
@@ -100,27 +102,30 @@ class ObdFunctions:
         mon_stat_decoded['Ignition-Monitor-Support'] = (int(mon_stat_encoded[1], 16) & 0b00001000) >> 3
         i = 0
         for test in mon_stat_decoded['Standard-Tests']:
-            mon_stat_decoded['Standard-Tests'][test] = ((int(mon_stat_encoded[1], 16) >> i)  & 0b00000001, (int(mon_stat_encoded[1], 16) >> (i + 4)) & 0b00000001)
+            mon_stat_decoded['Standard-Tests'][test] = (
+                (int(mon_stat_encoded[1], 16) >> i) & 0b00000001,
+                (int(mon_stat_encoded[1], 16) >> (i + 4)) & 0b00000001)
             i += 1
         i = 0
-        if mon_stat_decoded['Ignition-Monitor-Support']  == 0:
+        if mon_stat_decoded['Ignition-Monitor-Support'] == 0:
             support = 'Ignition-Monitor-Support'
         else:
             support = 'Compression-Monitor-Support'
         for test in mon_stat_decoded[support]:
-            mon_stat_decoded[support][test] = ((int(mon_stat_encoded[2], 16) >> i) & 0b00000001, (int(mon_stat_encoded[2], 16) >> i) & 0b00000001)
+            mon_stat_decoded[support][test] = (
+                (int(mon_stat_encoded[2], 16) >> i) & 0b00000001, (int(mon_stat_encoded[2], 16) >> i) & 0b00000001)
             i += 1
         return mon_stat_decoded
-             
+
     def get_fuel_system_status(self, mode_nr):
-        fuel_system_status = { 0b00000000: 'No fuel system available',
-                               0b00000001: 'Open loop due to insufficient engine temperature',
-                               0b00000010: 'Closed loop, using oxygen sensor feedback to determine fuel mix',
-                               0b00000100: 'Open loop due to engine load OR fuel cut to deceleration',
-                               0b00001000: 'Open loop due to system failure',
-                               0b00010000: 'Closed loop, using at least one oxygen sensor but there is a fault in the feedback system'
-                             }
-        answer = self.con.communicate(mode_nr+' 03 \r')
+        fuel_system_status = {0b00000000: 'No fuel system available',
+                              0b00000001: 'Open loop due to insufficient engine temperature',
+                              0b00000010: 'Closed loop, using oxygen sensor feedback to determine fuel mix',
+                              0b00000100: 'Open loop due to engine load OR fuel cut to deceleration',
+                              0b00001000: 'Open loop due to system failure',
+                              0b00010000: 'Closed loop, using at least one oxygen sensor '
+                                          'but there is a fault in the feedback system'}
+        answer = self.con.communicate(mode_nr + ' 03 \r')
         status_encoded = self.__get_relevant_message_parts(answer, '01', '\r\r')
         status_decoded = ( fuel_system_status[int(status_encoded, 16)], fuel_system_status[int(status_encoded, 16)] )
         return status_decoded
@@ -130,13 +135,13 @@ class ObdFunctions:
         return self.__get_relevant_message_parts(answer, hex(0x40 + int(mode_nr, 16)), '\r\r')
 
     def get_calculated_engine_load_value(self, mode_nr):
-        value_encoded = self.__get_encoded_value(mode_nr, '04') 
+        value_encoded = self.__get_encoded_value(mode_nr, '04')
         value_decoded = int(value_encoded[0], 16) * 100 / 255
         return value_decoded
 
     def get_engine_coolant_temperature(self, mode_nr):
         value_encoded = self.__get_encoded_value(mode_nr, '05')
-        value_decoded = int(value_encoded[0],16) - 40
+        value_decoded = int(value_encoded[0], 16) - 40
         return value_decoded
 
     #Term -> 0 = Short 1 = Long
@@ -152,12 +157,12 @@ class ObdFunctions:
             else:
                 pid = '09'
         value_encoded = self.__get_encoded_value(mode_nr, pid)
-        value_decoded = (int(value_encoded[0], 16)  - 128) * (100/128)
+        value_decoded = (int(value_encoded[0], 16) - 128) * (100 / 128)
         return value_decoded
-        
+
     def get_fuel_pressure(self, mode_nr):
         value_encoded = self.__get_encoded_value(mode_nr, '0A')
-        value_decoded = int(value_encoded[0], 16) * 3 
+        value_decoded = int(value_encoded[0], 16) * 3
         return value_decoded
 
     def get_intake_manifold_absolute_pressure(self, mode_nr):
@@ -189,20 +194,19 @@ class ObdFunctions:
         value_encoded = self.__get_encoded_value(mode_nr, '10')
         value_decoded = ((int(value_encoded[0], 16) * 256) + int(value_encoded[1], 16)) / 100
         return value_decoded
-    
+
     def get_throttle_position(self, mode_nr):
         value_encoded = self.__get_encoded_value(mode_nr, '11')
         value_decoded = int(value_encoded[0], 16) * 100 / 255
         return value_decoded
-        
+
     def get_commanded_secondary_air_status(self, mode_nr):
-        secondary_air_status = { 0b00000000: 'Upstream of catalytic converter',
-                                 0b00000010: 'Downstream of catalytic converter',
-                                 0b00000100: 'From the outside atmosphere or off'
-                               }
+        secondary_air_status = {0b00000000: 'Upstream of catalytic converter',
+                                0b00000010: 'Downstream of catalytic converter',
+                                0b00000100: 'From the outside atmosphere or off'}
         value_encoded = self.__get_encoded_value(mode_nr, '12')
         return secondary_air_status[int(value_encoded[0], 16)]
-    
+
     def get_available_oxygen_sensors(self, mode_nr):
         value_encoded = self.__get_encoded_value(mode_nr, '13')
         check_val = 0b00000001
@@ -214,7 +218,7 @@ class ObdFunctions:
             i += 1
             check_val *= 2
         return sensors
-      
+
     def get_dtc_mode_3(self):
         dtc_decoded = []
         answer = self.con.communicate('03 \r')
@@ -223,7 +227,7 @@ class ObdFunctions:
         dtc_encoded.pop(0)
         i = 0
         for x in range(dtc_count):
-            dtc = [dtc_encoded[i], dtc_encoded[i+1]]
+            dtc = [dtc_encoded[i], dtc_encoded[i + 1]]
             dtc_decoded.append(self.__translate_dtc(dtc))
         return dtc_decoded
 
@@ -243,6 +247,6 @@ class ObdFunctions:
         dtc_decoded += dtc_last_chars[dtc_third]
         dtc_fourth = int(dtc_encoded[1], 16) >> 4
         dtc_decoded += dtc_last_chars[dtc_fourth]
-        dtc_fifth = int(dtc_encoded[1],16) & 0b00001111
+        dtc_fifth = int(dtc_encoded[1], 16) & 0b00001111
         dtc_decoded += dtc_last_chars[dtc_fifth]
         return dtc_decoded
