@@ -31,20 +31,31 @@ class ObdConnection:
         time.sleep(self.sleep_time)
         return self.ser_con.readline()
 
+    def communicate(self, data):
+        self.write(data)
+        return self.readline()
+
 
 class ObdFunctions:
     def __init__(self, connection):
         self.con = connection
 
+    @staticmethod
+    def __get_relevant_message_parts(message, start_string, end_string):
+        start_index = message.find(start_string) + len(start_string) + 1 # Skipping the start_string and the space char
+        end_index = message.find(end_string) - 1  # cut off last space
+        ret_message = message[start_index:end_index].split(' ')
+        return ret_message
+
     # the method expects an answer like 01 00 \rSEARCHING...\rXX YY ZZ ... \r\r
     # the interesting part is between the last \r to \r\r
-    def get_supported_pids_mode_1(self):
+    def get_supported_pids_mode_1(self, mode_nr):
         info_pids = ['00', '20', '40', '80', 'A0', 'C0']
         supported_decoded = []
         supported_pids = []
         i = 1
         for pid in info_pids:
-            supported_encoded = self.__get_decoded_pids_mode_1(pid)
+            supported_encoded = self.__get_decoded_pids_mode_1(pid, mode_nr)
             supported_decoded += self.__decode_supported_pids_mode_1(supported_encoded, int(info_pids[i-1], 16))
             if int(info_pids[i], 16) in supported_decoded:
                 i += 1
@@ -55,18 +66,10 @@ class ObdFunctions:
             supported_pids.append((hex(pid), obd2pids.pids[pid][3]))
         return supported_pids
 
-    def __get_decoded_pids_mode_1(self, block_no):
-        self.con.write('01 '+block_no+' \r')
-        answer = self.con.readline()
+    def __get_decoded_pids_mode_1(self, block_no, mode_nr):
+        answer = self.con.communicate(mode_nr+' '+block_no+' \r')
         supported_encoded = self.__get_relevant_message_parts(answer, '41 '+block_no, '\r\r')
         return supported_encoded
-
-    @staticmethod
-    def __get_relevant_message_parts(message, start_string, end_string):
-        start_index = message.find(start_string) + len(start_string) + 1 # Skipping the start_string and the space char
-        end_index = message.find(end_string) - 1  # cut off last space
-        ret_message = message[start_index:end_index].split(' ')
-        return ret_message
 
     @staticmethod
     def __decode_supported_pids_mode_1(supported_encoded, base_pid):
@@ -82,10 +85,129 @@ class ObdFunctions:
         supported_decoded = sorted(supported_decoded)
         return supported_decoded
 
+    def get_monitor_status_since_dtc_clear(self, mode_nr):
+        mon_stat_decoded = {'MIL-Indication': 0, 'DTCs-available': 0, 'Ignition-Monitor-Support': 0,
+                            'Standard-Tests': { 'Misfire': (0, 0), 'Fuel-System': (0, 0), 'Components': (0, 0) }, 
+                            'Spark-Ignition-Tests': { 'Catalyst': (0, 0), 'Heated-Catalyst': (0, 0), 'Evaporative-Systems': (0, 0), 'Secondary-Air-System': (0, 0),
+                                                      'A/C-Refrigerant': (0, 0), 'Oxygen-Sensor': (0, 0), 'Oxygen-Sensor-Heater': (0, 0), 'EGR-Sytem': (0, 0) },
+                            'Compression-Ignition-Tests': { 'NMHC-Cat': (0, 0), 'N0x/Scr-Monitor': (0, 0), 'Boost-Pressure': (0, 0), 'Exhaust-Gas-Sensor': (0, 0),
+                                                            'PM-Filter-Monitoring': (0, 0), 'EGR/VVT-System': (0, 0) }
+                           }
+        answer = self.con.communicate(mode_nr + '01 \r')
+        mon_stat_encoded = self.__get_relevant_message_parts(answer, '41 01', '\r\r')
+        mon_stat_decoded['MIL-Indication'] = int(mon_stat_encoded[0], 16) >> 7
+        mon_stat_decoded['DTCs-available'] = int(mon_stat_encoded[0], 16) & 0b01111111
+        mon_stat_decoded['Ignition-Monitor-Support'] = (int(mon_stat_encoded[1], 16) & 0b00001000) >> 3
+        i = 0
+        for test in mon_stat_decoded['Standard-Tests']:
+            mon_stat_decoded['Standard-Tests'][test] = ((int(mon_stat_encoded[1], 16) >> i)  & 0b00000001, (int(mon_stat_encoded[1], 16) >> (i + 4)) & 0b00000001)
+            i += 1
+        i = 0
+        if mon_stat_decoded['Ignition-Monitor-Support']  == 0:
+            support = 'Ignition-Monitor-Support'
+        else:
+            support = 'Compression-Monitor-Support'
+        for test in mon_stat_decoded[support]:
+            mon_stat_decoded[support][test] = ((int(mon_stat_encoded[2], 16) >> i) & 0b00000001, (int(mon_stat_encoded[2], 16) >> i) & 0b00000001)
+            i += 1
+        return mon_stat_decoded
+             
+    def get_fuel_system_status(self, mode_nr):
+        fuel_system_status = { 0b00000000: 'No fuel system available',
+                               0b00000001: 'Open loop due to insufficient engine temperature',
+                               0b00000010: 'Closed loop, using oxygen sensor feedback to determine fuel mix',
+                               0b00000100: 'Open loop due to engine load OR fuel cut to deceleration',
+                               0b00001000: 'Open loop due to system failure',
+                               0b00010000: 'Closed loop, using at least one oxygen sensor but there is a fault in the feedback system'
+                             }
+        answer = self.con.communicate(mode_nr+' 03 \r')
+        status_encoded = self.__get_relevant_message_parts(answer, '01', '\r\r')
+        status_decoded = ( fuel_system_status[int(status_encoded, 16)], fuel_system_status[int(status_encoded, 16)] )
+        return status_decoded
+
+    def __get_encoded_value(self, mode_nr, pid):
+        answer = self.con.communicate(mode_nr + ' ' + pid + ' \r\r')
+        return self.__get_relevant_message_parts(answer, hex(0x40 + int(mode_nr, 16)), '\r\r')
+
+    def get_calculated_engine_load_value(self, mode_nr):
+        value_encoded = self.__get_encoded_value(mode_nr, '04') 
+        value_decoded = int(value_encoded[0], 16) * 100 / 255
+        return value_decoded
+
+    def get_engine_coolant_temperature(self, mode_nr):
+        value_encoded = self.__get_encoded_value(mode_nr, '05')
+        value_decoded = int(value_encoded[0],16) - 40
+        return value_decoded
+
+    #Term -> 0 = Short 1 = Long
+    def get_fuel_trim(self, mode_nr, term, bank_nr):
+        if term == 0:
+            if bank_nr == 1:
+                pid = '06'
+            else:
+                pid = '08'
+        else:
+            if bank_nr == 1:
+                pid = '07'
+            else:
+                pid = '09'
+        value_encoded = self.__get_encoded_value(mode_nr, pid)
+        value_decoded = (int(value_encoded[0], 16)  - 128) * (100/128)
+        return value_decoded
+        
+    def get_fuel_pressure(self, mode_nr):
+        value_encoded = self.__get_encoded_value(mode_nr, '0A')
+        value_decoded = int(value_encoded[0], 16) * 3 
+        return value_decoded
+
+    def get_intake_manifold_absolute_pressure(self, mode_nr):
+        value_encoded = self.__get_encoded_value(mode_nr, '0B')
+        value_decoded = int(value_encoded[0], 16)
+        return value_decoded
+
+    def get_engine_rpm(self, mode_nr):
+        value_encoded = self.__get_encoded_value(mode_nr, '0C')
+        value_decoded = ((int(value_encoded[0], 16) * 256) + int(value_encoded[1], 16)) / 4
+        return value_decoded
+
+    def get_vehicle_speed(self, mode_nr):
+        value_encoded = self.__get_encoded_value(mode_nr, '0D')
+        value_decoded = int(value_encoded[0], 16)
+        return value_decoded
+
+    def get_timing_advance(self, mode_nr):
+        value_encoded = self.__get_encoded_value(mode_nr, '0E')
+        value_decoded = (int(value_encoded[0], 16) / 2) - 64
+        return value_decoded
+
+    def get_intake_air_temperature(self, mode_nr):
+        value_encoded = self.__get_encoded_value(mode_nr, '0F')
+        value_decoded = int(value_encoded[0], 16) - 40
+        return value_decoded
+
+    def get_maf_air_flow_rate(self, mode_nr):
+        value_encoded = self.__get_encoded_value(mode_nr, '10')
+        value_decoded = ((int(value_encoded[0], 16) * 256) + int(value_encoded[1], 16)) / 100
+        return value_decoded
+    
+    def get_throttle_position(self, mode_nr):
+        value_encoded = self.__get_encoded_value(mode_nr, '11')
+        value_decoded = int(value_encoded[0], 16) * 100 / 255
+        return value_decoded
+        
+    def get_commanded_secondary_air_status(self, mode_nr):
+        secondary_air_status = { 0b00000000: 'Upstream of catalytic converter',
+                                 0b00000010: 'Downstream of catalytic converter',
+                                 0b00000100: 'From the outside atmosphere or off'
+                               }
+        value_encoded = self.__get_encoded_value(mode_nr, '12')
+        return secondary_air_status[int(value_encoded[0], 16)]
+    
+    def  
+      
     def get_dtc_mode_3(self):
         dtc_decoded = []
-        self.con.write('03 \r')
-        answer = self.con.readline()
+        answer = self.con.communicate('03 \r')
         dtc_encoded = self.__get_relevant_message_parts(answer, '43', '\r\r')
         dtc_count = int(dtc_encoded[0], 16)
         dtc_encoded.pop(0)
