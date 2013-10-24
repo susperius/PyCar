@@ -16,6 +16,7 @@ class ObdConnection:
     # uses the AT SP Command to set the choosen protocol
     # 0 = auto detection
     def set_protocol(self, prot_no):
+        self.write('AT D \r')
         self.write('AT SP' + str(prot_no) + ' \r')
         answer = self.readline()
         if 'OK' in answer:
@@ -34,7 +35,20 @@ class ObdConnection:
     def communicate(self, data):
         self.write(data)
         return self.readline()
-
+    
+    def sniff(self):
+        sav_time = self.sleep_time
+        self.sleep_time = 0
+        self.write('AT H1 \r')
+        self.write('AT CAF0 \r')
+        self.write('AT MA \r')
+        try:
+            while True:
+                print('',self.readline())
+        except KeyboardInterrupt:
+            print('Stop Sniffing -> CTRL+C received')
+            self.communicate('AT D \r')
+            self.sleep_time = sav_time
 
 class ObdFunctions:
     def __init__(self, connection):
@@ -49,6 +63,7 @@ class ObdFunctions:
 
     # the method expects an answer like 01 00 \rSEARCHING...\rXX YY ZZ ... \r\r
     # the interesting part is between the last \r to \r\r
+    #TODO: Refactor -> Cut off mode_1
     def get_supported_pids_mode_1(self, mode_nr):
         info_pids = ['00', '20', '40', '80', 'A0', 'C0']
         supported_decoded = []
@@ -65,12 +80,14 @@ class ObdFunctions:
         for pid in supported_decoded:
             supported_pids.append((hex(pid), obd2pids.pids[pid][3]))
         return supported_pids
-
+    
+    #TODO: Refactor -> Cut off mode_1
     def __get_decoded_pids_mode_1(self, block_no, mode_nr):
         answer = self.con.communicate(mode_nr + ' ' + block_no + ' \r')
         supported_encoded = self.__get_relevant_message_parts(answer, '41 ' + block_no, '\r\r')
         return supported_encoded
-
+    
+    #TODO: Refactor -> Cut off mode_1
     @staticmethod
     def __decode_supported_pids_mode_1(supported_encoded, base_pid):
         i = base_pid + 1
