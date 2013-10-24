@@ -39,9 +39,9 @@ class ObdConnection:
     def sniff(self):
         sav_time = self.sleep_time
         self.sleep_time = 0
-        self.write('AT H1 \r')
-        self.write('AT CAF0 \r')
-        self.write('AT MA \r')
+        self.communicate('AT H1 \r')
+        self.communicate('AT CAF0 \r')
+        self.communicate('AT MA \r')
         try:
             while True:
                 print('',self.readline())
