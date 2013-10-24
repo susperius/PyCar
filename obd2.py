@@ -54,6 +54,10 @@ class ObdFunctions:
     def __init__(self, connection):
         self.con = connection
 
+    def __get_encoded_value(self, mode_nr, pid):
+        answer = self.con.communicate(mode_nr + ' ' + pid + ' \r\r')
+        return self.__get_relevant_message_parts(answer, hex(0x40 + int(mode_nr, 16))[2:4]+' '+pid, '\r\r')
+
     @staticmethod
     def __get_relevant_message_parts(message, start_string, end_string):
         start_index = message.find(start_string) + len(start_string) + 1 # Skipping the start_string and the space char
@@ -70,7 +74,7 @@ class ObdFunctions:
         supported_pids = []
         i = 1
         for pid in info_pids:
-            supported_encoded = self.__get_decoded_pids_mode_1(pid, mode_nr)
+            supported_encoded = self.__get_encoded_value('01', pid)
             supported_decoded += self.__decode_supported_pids_mode_1(supported_encoded, int(info_pids[i - 1], 16))
             if int(info_pids[i], 16) in supported_decoded:
                 i += 1
@@ -80,12 +84,6 @@ class ObdFunctions:
         for pid in supported_decoded:
             supported_pids.append((hex(pid), obd2pids.pids[pid][3]))
         return supported_pids
-    
-    #TODO: Refactor -> Cut off mode_1
-    def __get_decoded_pids_mode_1(self, block_no, mode_nr):
-        answer = self.con.communicate(mode_nr + ' ' + block_no + ' \r')
-        supported_encoded = self.__get_relevant_message_parts(answer, '41 ' + block_no, '\r\r')
-        return supported_encoded
     
     #TODO: Refactor -> Cut off mode_1
     @staticmethod
@@ -112,8 +110,7 @@ class ObdFunctions:
                             'Compression-Ignition-Tests': {'NMHC-Cat': (0, 0), 'N0x/Scr-Monitor': (0, 0),
                                                            'Boost-Pressure': (0, 0), 'Exhaust-Gas-Sensor': (0, 0),
                                                            'PM-Filter-Monitoring': (0, 0), 'EGR/VVT-System': (0, 0)}}
-        answer = self.con.communicate(mode_nr + '01 \r')
-        mon_stat_encoded = self.__get_relevant_message_parts(answer, '41 01', '\r\r')
+        mon_stat_encoded = self.__get_encoded_value(mode_nr, '01')
         mon_stat_decoded['MIL-Indication'] = int(mon_stat_encoded[0], 16) >> 7
         mon_stat_decoded['DTCs-available'] = int(mon_stat_encoded[0], 16) & 0b01111111
         mon_stat_decoded['Ignition-Monitor-Support'] = (int(mon_stat_encoded[1], 16) & 0b00001000) >> 3
@@ -142,16 +139,9 @@ class ObdFunctions:
                               0b00001000: 'Open loop due to system failure',
                               0b00010000: 'Closed loop, using at least one oxygen sensor '
                                           'but there is a fault in the feedback system'}
-        answer = self.con.communicate(mode_nr + ' 03 \r')
-        status_encoded = self.__get_relevant_message_parts(answer, '01', '\r\r')
+        status_encoded = self.__get_encoded_value(mode_nr, '03')
         status_decoded = ( fuel_system_status[int(status_encoded, 16)], fuel_system_status[int(status_encoded, 16)] )
         return status_decoded
-
-    def __get_encoded_value(self, mode_nr, pid):
-        answer = self.con.communicate(mode_nr + ' ' + pid + ' \r\r')
-	print(hex(0x40 + int(mode_nr, 16))[2:4]+ ' '+pid)
-	print(pid)
-        return self.__get_relevant_message_parts(answer, hex(0x40 + int(mode_nr, 16))[2:4]+' '+pid, '\r\r')
 
     def get_calculated_engine_load_value(self, mode_nr):
         value_encoded = self.__get_encoded_value(mode_nr, '04')
@@ -240,8 +230,7 @@ class ObdFunctions:
 
     def get_dtc_mode_3(self):
         dtc_decoded = []
-        answer = self.con.communicate('03 \r')
-        dtc_encoded = self.__get_relevant_message_parts(answer, '43', '\r\r')
+        dtc_encoded = self.__get_encoded_value('03', '')
         dtc_count = int(dtc_encoded[0], 16)
         dtc_encoded.pop(0)
         i = 0
@@ -269,3 +258,7 @@ class ObdFunctions:
         dtc_fifth = int(dtc_encoded[1], 16) & 0b00001111
         dtc_decoded += dtc_last_chars[dtc_fifth]
         return dtc_decoded
+
+    def clear_dtc_and_mil(self):
+        answer = self.communicate('04 \r')
+        
