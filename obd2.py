@@ -61,6 +61,8 @@ class ObdConnection:
 
 
 class ObdFunctions:
+    negative_response = '7F'
+
     def __init__(self, connection):
         self.con = connection
 
