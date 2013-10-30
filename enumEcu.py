@@ -4,19 +4,59 @@ ser = obd2.ObdConnection('/dev/ttyUSB0', wait_time=0)
 
 print(ser.communicate('AT H1 \r'))
 
-x = 0x6 
-z = 0
-for a in range(0x7):
-    y = 1
-    for b in range(0x10):
-        z = 0 
-        for c in range(1):
-            print('--------------------------------------------------')
-            print('Address -> ', ser.communicate('AT SH '+hex(x)[2:4]+hex(y)[2:4]+hex(z)[2:4]+' \r'))
-            print('01 -> ', ser.communicate('01 3E \r'))
-            print('02 -> ', ser.communicate('02 3E \r'))
-            print('03 -> ', ser.communicate('3E \r'))
-            print('04 -> ', ser.communicate('09 0A \r'))
-        y += 1
-    x += 1
-      
+
+def transform_intvalue_to_2char_hexstring(intvalue):
+    return hex(intvalue)[2:4]
+
+
+def transform_intvalue_to_3char_hexstring(intvalue):
+    if intvalue < 0x010:
+        hexstring = '00'+hex(intvalue)[2:4]
+    elif intvalue < 0x100:
+        hexstring = '0'+hex(intvalue)[2:5]
+    else:
+        hexstring = hex(intvalue)[2:6]
+    return hexstring
+
+
+def enum_ecu(first_id, last_id):
+    if (first_id or last_id) < 0x001 or (first_id or last_id) > 0x7FF:
+        raise ValueError('lowest ID is 0x001 and highest is 0x7FF')
+    usable_can_id = []
+    start = int(first_id, 16)
+    end = int(last_id, 16) + 1
+    if 'OK' in ser.communicate('AT H1 \r'):
+        for x in range(start, end):
+            can_id = transform_intvalue_to_3char_hexstring(x)
+            answer = ser.communicate('AT SH '+can_id+' \r')
+            if 'OK' in answer:
+                answer_header = transform_intvalue_to_3char_hexstring(x + 0x8)
+                answer = ser.communicate('01 3E \r')
+                answer += ser.communicate('02 3E \r')
+                answer += ser.communicate('3E')
+                if answer_header in answer:
+                    usable_can_id.append(can_id)
+            else:
+                raise IOError('ELM327: couldn\'t set the desired Header')
+    else:
+        raise IOError('ELM327: couldn\'t set show Header')
+    return usable_can_id
+
+
+def find_supported_diagnostics(can_id):
+    supported = []
+    supported_working = []
+    answer = ser.communicate('AT SH '+can_id+' \r')
+    if 'OK' in answer:
+        for x in range(0x100):
+            diag_id = transform_intvalue_to_2char_hexstring(x)
+            answer = ser.communicate(diag_id+' \r')
+            if ('7F' and '12') or ('7F' and '22') in answer:
+                supported.append(diag_id)
+            elif '7F' in answer:
+                continue
+            else:
+                supported_working.append(diag_id)
+    else:
+        raise IOError('ELM327: couldn\'t set desired Header')
+    return {'supported': supported, 'working':supported_working}

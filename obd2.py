@@ -32,6 +32,16 @@ class ObdConnection:
             return True, answer
         return False, answer
 
+    def show_header(self, show):
+        if show:
+            sh = '1'
+        else:
+            sh = '0'
+        return self.communicate('AT H'+sh)
+
+    def set_header(self, header):
+        return self.communicate('AT SH '+header)
+
     def write(self, data):
         byte_count = self.ser_con.write(data)
         time.sleep(self.sleep_time)
@@ -61,7 +71,6 @@ class ObdConnection:
 
 
 class ObdFunctions:
-    negative_response = '7F'
 
     def __init__(self, connection):
         self.con = connection
