@@ -6,7 +6,7 @@ print(ser.communicate('AT H1 \r'))
 
 
 def transform_intvalue_to_2char_hexstring(intvalue):
-    return hex(intvalue)[2:4]
+    return hex(intvalue)[2:5]
 
 
 def transform_intvalue_to_3char_hexstring(intvalue):
