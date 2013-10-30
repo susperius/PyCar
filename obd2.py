@@ -7,8 +7,17 @@ import obd2pids
 
 class ObdConnection:
     sleep_time = 0
+    protocols = {0: 'Automatic', 1: 'SAE J1850 PWM', 2: 'SAE J1850 VPW', 3: 'ISO 9141-2', 4: 'ISO 14230-4 KWP',
+                 5: 'ISO 14230-4 KWP (fast init)', 6: 'ISO 15765-4 CAN (11 bit ID, 500 kbaud',
+                 7: 'ISO 15765-4 CAN (29 bit ID, 500 kbaud', 8: 'ISO 15765-4 CAN (11 bit ID, 250 kbaud)',
+                 9: 'ISO 15765-4 CAN (29 bit ID, 250 kbaud', 10: 'SAE J1939 CAN (29 bit ID, 250 kbaud)',
+                 11: 'User defined CAN', 12: 'User defined CAN'}
 
     def __init__(self, port, bauds=38400, timeout=1, prot_no=0, wait_time=0.5):
+        """
+
+        @rtype : ObdConnection
+        """
         self.ser_con = serial.Serial(port, bauds, timeout=timeout)
         self.set_protocol(prot_no)
         self.sleep_time = wait_time
@@ -50,6 +59,7 @@ class ObdConnection:
             self.communicate('AT D \r')
             self.sleep_time = sav_time
 
+
 class ObdFunctions:
     def __init__(self, connection):
         self.con = connection
@@ -67,15 +77,14 @@ class ObdFunctions:
 
     # the method expects an answer like 01 00 \rSEARCHING...\rXX YY ZZ ... \r\r
     # the interesting part is between the last \r to \r\r
-    #TODO: Refactor -> Cut off mode_1
-    def get_supported_pids_mode_1(self, mode_nr):
+    def get_supported_pids(self, mode_nr):
         info_pids = ['00', '20', '40', '80', 'A0', 'C0']
         supported_decoded = []
         supported_pids = []
         i = 1
         for pid in info_pids:
             supported_encoded = self.__get_encoded_value('01', pid)
-            supported_decoded += self.__decode_supported_pids_mode_1(supported_encoded, int(info_pids[i - 1], 16))
+            supported_decoded += self.__decode_supported_pids(supported_encoded, int(info_pids[i - 1], 16))
             if int(info_pids[i], 16) in supported_decoded:
                 i += 1
                 continue
@@ -84,10 +93,9 @@ class ObdFunctions:
         for pid in supported_decoded:
             supported_pids.append((hex(pid), obd2pids.pids[pid][3]))
         return supported_pids
-    
-    #TODO: Refactor -> Cut off mode_1
+
     @staticmethod
-    def __decode_supported_pids_mode_1(supported_encoded, base_pid):
+    def __decode_supported_pids(supported_encoded, base_pid):
         i = base_pid + 1
         supported_decoded = []
         for elem in supported_encoded:
@@ -228,7 +236,7 @@ class ObdFunctions:
             check_val *= 2
         return sensors
 
-    def get_dtc_mode_3(self):
+    def get_dtc(self):
         dtc_decoded = []
         dtc_encoded = self.__get_encoded_value('03', '')
         dtc_count = int(dtc_encoded[0], 16)
@@ -261,4 +269,3 @@ class ObdFunctions:
 
     def clear_dtc_and_mil(self):
         answer = self.communicate('04 \r')
-        
