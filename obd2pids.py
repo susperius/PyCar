@@ -1,6 +1,8 @@
 #!/usr/bin/python
 #coding=utf8
-
+"""
+This is only a "parsed" version of the OBD2_pids Table from the english wikipedia
+"""
 pids = [
     ('01', '00', '4', 'PIDs supported [01 - 20]', '', '', '',
      'Bit encoded [A7..D0] == [PID $01..PID $20] <a href="#Bitwise_encoded_PIDs">See below.</a>'),

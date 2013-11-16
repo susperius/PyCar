@@ -18,7 +18,7 @@ class ObdConnection:
                  9: 'ISO 15765-4 CAN (29 bit ID, 250 kbaud', 10: 'SAE J1939 CAN (29 bit ID, 250 kbaud)',
                  11: 'User defined CAN', 12: 'User defined CAN'}
 
-    def __init__(self, port, bauds=38400, timeout=1, prot_no=0, wait_time=0.5):
+    def __init__(self, port, bauds=38400, timeout=1, prot_no=0, wait_time=0):
         """
         @param port Only tested on Linux system, it's expected as string and should look like "/dev/ttyUSBx"
         @rtype : ObdConnection
@@ -322,3 +322,4 @@ class ObdFunctions:
 
     def clear_dtc_and_mil(self):
         answer = self.communicate('04 \r')
+        return answer
