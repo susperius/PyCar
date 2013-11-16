@@ -30,6 +30,11 @@ class ObdConnection:
     # uses the AT SP Command to set the choosen protocol
     # 0 = auto detection
     def set_protocol(self, prot_no):
+        """
+        This method allows you to change the used Protocol by your ELM327 Adapter
+        @param prot_no: Should be an integer value as defined in ObdConnection.protocols
+        @return: (bool, string)
+        """
         self.write('AT D \r')
         self.write('AT SP' + str(prot_no) + ' \r')
         answer = self.readline()
@@ -38,6 +43,11 @@ class ObdConnection:
         return False, answer
 
     def show_header(self, show):
+        """
+        Switch the show header option to show
+        @param show: bool
+        @return: The answer of the ELM327
+        """
         if show:
             sh = '1'
         else:
@@ -45,22 +55,45 @@ class ObdConnection:
         return self.communicate('AT H'+sh)
 
     def set_header(self, header):
+        """
+        This method sets the Protocolheader to the value of header. There different Header formats dependent on your
+        choosen protocol. Please refer to your Adapter manual to choose the right format
+        @param header: Should be a hex string value like "1FEEB"
+        @return: The answer of the ELM327
+        """
         return self.communicate('AT SH '+header)
 
     def write(self, data):
+        """
+        Writes data to the Adapter
+        @param data: String or Byte[]
+        @return: The number of bytes written
+        """
         byte_count = self.ser_con.write(data)
         time.sleep(self.sleep_time)
         return byte_count
 
     def readline(self):
+        """
+        Reads bytes from the Adapter till a carriage return
+        @return: String
+        """
         time.sleep(self.sleep_time)
         return self.ser_con.readline()
 
     def communicate(self, data):
+        """
+        A wrapper for write and readline to combine it in one call
+        @param data:
+        @return: String
+        """
         self.write(data)
         return self.readline()
     
     def sniff(self):
+        """
+        The sniff method is supposed to read all the Stuff from your CanBus ... it needs some fixes ;)
+        """
         sav_time = self.sleep_time
         self.sleep_time = 0
         self.communicate('AT H1 \r')
