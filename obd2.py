@@ -6,6 +6,11 @@ import obd2pids
 
 
 class ObdConnection:
+    """
+    This class does all the connection stuff
+    @author Susperius
+    @contact susperius@gmail.com
+    """
     sleep_time = 0
     protocols = {0: 'Automatic', 1: 'SAE J1850 PWM', 2: 'SAE J1850 VPW', 3: 'ISO 9141-2', 4: 'ISO 14230-4 KWP',
                  5: 'ISO 14230-4 KWP (fast init)', 6: 'ISO 15765-4 CAN (11 bit ID, 500 kbaud',
@@ -15,7 +20,7 @@ class ObdConnection:
 
     def __init__(self, port, bauds=38400, timeout=1, prot_no=0, wait_time=0.5):
         """
-
+        @param port Only tested on Linux system, it's expected as string and should look like "/dev/ttyUSBx"
         @rtype : ObdConnection
         """
         self.ser_con = serial.Serial(port, bauds, timeout=timeout)
@@ -71,7 +76,11 @@ class ObdConnection:
 
 
 class ObdFunctions:
-
+    """
+    This class helps you to read different values from the ECU via a ObdConnection object
+    @author Susperius
+    @contact susperius@gmail.com
+    """
     def __init__(self, connection):
         self.con = connection
 
