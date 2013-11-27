@@ -2,7 +2,7 @@
 
 import serial
 import time
-import obd2pids
+from pycar import obd2pids
 
 
 class ObdConnection:
@@ -114,8 +114,8 @@ class ObdFunctions:
     @author Susperius
     @contact susperius@gmail.com
     """
-    def __init__(self, connection):
-        self.con = connection
+    def __init__(self, obdconnection):
+        self.con = obdconnection
 
     def __get_encoded_value(self, mode_nr, pid):
         answer = self.con.communicate(mode_nr + ' ' + pid + ' \r\r')

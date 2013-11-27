@@ -11,9 +11,10 @@
 #dtc_stored = handle.get_dtc()
 
 import os
-import obd2
+import pycar
+from pycar import obd2
 
-handle = obd2.ObdFunctions(obd2.ObdConnection('/dev/ttyUSB0', timeout=0))
+handle = obd2.ObdFunctions(obd2.ObdConnection('/dev/ttyUSB0', timeout=0.8))
 
 while True:
     speed = handle.get_vehicle_speed()
