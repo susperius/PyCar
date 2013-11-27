@@ -11,6 +11,8 @@ class EcuFunctions:
     This class should help you find ECUs on the canbus
     My goal is to write a class, which does the enumeration of the ecus without CAF activated ... I hope I'll find
     some time soon ;)
+    @author Susperius
+    @contact susperius@gmail.com
     """
     def __init__(self, obdconnection):
         """
