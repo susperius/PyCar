@@ -1,0 +1,7 @@
+This module should provide you some basic functionality to communicate with your car via an ELM327 Obd2 to USB
+Adapter.
+
+Before you'll be able to use the module you need to install PySerial.
+
+Have fun!
+
