@@ -3,5 +3,8 @@ Adapter.
 
 Before you'll be able to use the module you need to install PySerial.
 
-Have fun!
+I was only able to test the module in my own car (it's a Ford), so don't blame me if something bad will happen or the
+module isn't working, in this case please send me your log (e.g. the answer of your car)
+
+Thanks and Have fun!
 
